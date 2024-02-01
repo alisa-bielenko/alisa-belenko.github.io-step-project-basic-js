@@ -248,8 +248,8 @@ DATA.forEach((trainers, index) => {
     console.log(trainers.id);
 });
 
-//функция disableScroll для блокування/розблокування скролу сторінки
 let scrollPosition = null;
+let filteredData = [...DATA]; // Початкові дані
 
 const disableScroll = () => {
     scrollPosition = window.scrollY;
@@ -267,45 +267,80 @@ const enableScroll = () => {
     window.scrollTo(0, scrollPosition);
 };
 
-// відображення блоку сортування та фільтрування при завантаженні сторінки
-document.querySelector('.sorting').removeAttribute('hidden');
-document.querySelector('.sidebar').removeAttribute('hidden');
-showPreloader();
+const applyFilters = () => {
+    const direction = document.querySelector('input[name="direction"]:checked').value;
+    const category = document.querySelector('input[name="category"]:checked').value;
 
-//виведення карток на сторінку
-DATA.forEach((trainers, index) => {
-    trainers.id = index++;
-    console.log(trainers.id);
-});
+    filteredData = DATA.filter(trainer => {
+        return (direction === 'all' || trainer.specialization.toLowerCase() === direction) &&
+               (category === 'all' || trainer.category.toLowerCase() === category);
+    });
+};
 
-const trainersCardsContainer = document.querySelector('.trainers-cards__container');
-const trainerCardTemplate = document.querySelector('#trainer-card').content;
+const applySorting = (el) => {
+    if (el.innerText === 'ЗА ПРІЗВИЩЕМ') {
+        filteredData.sort((a, b) => a['last name'].localeCompare(b['last name']));
+    } else if (el.innerText === 'ЗА ДОСВІДОМ') {
+        filteredData.sort((a, b) => parseInt(b.experience) - parseInt(a.experience));
+    }
+};
 
 const renderTrainerCards = (trainerData) => {
+    const trainersCardsContainer = document.querySelector('.trainers-cards__container');
+    const trainerCardTemplate = document.querySelector('#trainer-card').content;
+
     trainersCardsContainer.innerHTML = "";
+
     trainerData.forEach(trainer => {
         const trainerCard = trainerCardTemplate.cloneNode(true);
         trainerCard.querySelector(".trainer").setAttribute("data-id", trainer.id);
         trainerCard.querySelector('.trainer__img').src = trainer.photo;
         trainerCard.querySelector(".trainer__img").alt = `${trainer['last name']} ${trainer['id']}`;
         trainerCard.querySelector('.trainer__name').innerText = `${trainer['last name']} ${trainer['first name']}`;
-        
+
         trainersCardsContainer.append(trainerCard);
     });
-}
-renderTrainerCards(DATA);
+};
 
-// виведення модального вікна на сторінку та закриття
-const modalWindowTemplate = document.querySelector('#modal-template').content;
+// Виведення карток на сторінку
+DATA.forEach((trainer, index) => {
+    trainer.id = index++;
+});
+
+renderTrainerCards(filteredData);
+
+const sortingBtnCollection = document.querySelectorAll('.sorting__btn');
+sortingBtnCollection.forEach(button => {
+    button.addEventListener('click', () => {
+        sortingBtnCollection.forEach(btn => {
+            btn.classList.remove('sorting__btn--active');
+        });
+
+        button.classList.add('sorting__btn--active');
+        applySorting(button);
+        renderTrainerCards(filteredData);
+    });
+});
+
+const filtersForm = document.querySelector('.filters');
+filtersForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    applyFilters();
+    applySorting(document.querySelector('.sorting__btn--active'));
+    renderTrainerCards(filteredData);
+});
+
+document.querySelector('.sorting').removeAttribute('hidden');
+document.querySelector('.sidebar').removeAttribute('hidden');
+showPreloader();
 
 document.addEventListener("DOMContentLoaded", () => {
     document.body.addEventListener("click", (event) => {
         if (event.target.classList.contains("trainer__show-more")) {
-            const modalData = modalWindowTemplate.cloneNode(true);
+            const modalData = document.querySelector('#modal-template').content.cloneNode(true);
             const cardModal = event.target.closest('.trainer');
-            //console.log(cardModal);
             const trainerDataModal = DATA.find(element => element.id === +cardModal.dataset.id);
-            
+
             modalData.querySelector('.modal__img').src = trainerDataModal.photo;
             modalData.querySelector(".modal__img").alt = `${trainerDataModal['last name']} ${trainerDataModal['id']}`;
             modalData.querySelector('.modal__name').innerText = `${trainerDataModal['last name']} ${trainerDataModal['first name']}`;
@@ -325,56 +360,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-//сортування даних
-const sortingData = (el, arr) => {
-    if (el.innerText === 'ЗА ПРІЗВИЩЕМ') {
-        arr.sort((a, b) => a['last name'].localeCompare(b['last name']));
-    } else if (el.innerText === 'ЗА ДОСВІДОМ') {
-        arr.sort((a, b) => parseInt(b.experience) - parseInt(a.experience));
-    }
-    renderTrainerCards(arr);
-}
-
-const sortingBtn = document.querySelectorAll('.sorting__btn');
-sortingBtn.forEach(button => {
-    button.addEventListener('click', () => {
-        sortingBtn.forEach(btn => {
-            btn.classList.remove('sorting__btn--active')
-        });
-
-        const sortingNewData = [...DATA];
-        button.classList.add('sorting__btn--active');
-        sortingData(button, sortingNewData);
-    });
-});
-
-//фільтрація даних з урахуванням сортування
-const filtersForm = document.querySelector('.filters');
-filtersForm.addEventListener('submit', (event) => {
-    event.preventDefault();
-    
-    const filteredData = DATA.filter(trainer => {
-        const direction = document.querySelector('input[name="direction"]:checked').value;
-        const category = document.querySelector('input[name="category"]:checked').value;
-        if ((direction === 'all' || trainer.specialization.toLowerCase() === direction) && (category === 'all' || trainer.category.toLowerCase() === category)) {
-            return true;
-        }
-    });
-
-    const sotringActiveBtn = document.querySelector('.sorting__btn--active');
-    sortingData(sotringActiveBtn, filteredData);
-});
-
 // Preloader при завантаженні строрінці
 function showPreloader() {
-window.addEventListener('load', () => {
-    const header = document.querySelector(".page-header");
-    const preloaderHTML = '<div id="preloader"><img src="./img/fitness_preloader.gif" alt="Loading..."></div>';
-    header.insertAdjacentHTML('afterend', preloaderHTML);
-    const preloaderElement = document.querySelector("#preloader");
+    window.addEventListener('load', () => {
+        const header = document.querySelector(".page-header");
+        const preloaderHTML = '<div id="preloader"><img src="./img/fitness_preloader.gif" alt="Loading..."></div>';
+        header.insertAdjacentHTML('afterend', preloaderHTML);
+        const preloaderElement = document.querySelector("#preloader");
 
-    setTimeout(() => {
-        preloaderElement.style.display = 'none';  
-    }, 2500);
-});
+        setTimeout(() => {
+            preloaderElement.style.display = 'none';
+        }, 2500);
+    });
 }
